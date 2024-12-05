@@ -1,6 +1,5 @@
 package org.evensen.ants;
 
-import javafx.geometry.Pos;
 import java.util.Random;
 
 public class MyAntWorld implements AntWorld{
@@ -9,8 +8,8 @@ public class MyAntWorld implements AntWorld{
     int WORLD_HEIGHT;
     int n_food_sources;
     FoodSource[] food_sources;
-    float[][] food_pheromone;
-    float[][] foraging_pheromone;
+    public float[][] food_pheromone;
+    public float[][] foraging_pheromone;
     
     boolean[][] food_mask;
 
@@ -69,7 +68,10 @@ public class MyAntWorld implements AntWorld{
     public void dropForagingPheromone(Position p, float amount) {
         int x_idx = (int)p.getX();
         int y_idx = (int)p.getY();
+
         foraging_pheromone[x_idx][y_idx] += amount;
+
+        foraging_pheromone[x_idx][y_idx] = Math.min(1f, foraging_pheromone[x_idx][y_idx]);
     }
     
     @Override
@@ -77,6 +79,8 @@ public class MyAntWorld implements AntWorld{
         int x_idx = (int)p.getX();
         int y_idx = (int)p.getY();
         food_pheromone[x_idx][y_idx] += amount;
+
+        food_pheromone[x_idx][y_idx] = Math.min(1f, food_pheromone[x_idx][y_idx]);
     }
     
     @Override
@@ -137,10 +141,69 @@ public class MyAntWorld implements AntWorld{
         // Default return value
         return p.isWithinRadius(new Position(WORLD_WIDTH, WORLD_HEIGHT/2), 20);
     }
+
+    @Override
+    public void dispersePheromones(DispersalPolicy policy) {
+        float[][][] phermone_map = new float[2][WORLD_WIDTH][WORLD_HEIGHT];
+        
+        for(int x = 0; x < WORLD_WIDTH; x++){
+            for(int y = 0; y < WORLD_HEIGHT; y++){
+                float[] res = policy.getDispersedValue(this, new Position(x, y));
+                phermone_map[0][x][y] = res[0];
+                phermone_map[1][x][y] = res[1];
+            }
+        }
+
+        food_pheromone = phermone_map[0];
+        foraging_pheromone = phermone_map[1];
+    }
     
     @Override
-    public void dispersePheromones() {
-        // Default behavior: do nothing
+    public void selfContainedDisperse() {
+        float[][][] pheromone_map = dispersePheromone_();
+        food_pheromone = pheromone_map[0];
+        foraging_pheromone = pheromone_map[1];
+    }
+
+    float[][][] dispersePheromone_(){
+        float f = 0.95f;
+        float k = 0.5f;
+        float[][][] phermone_map = new float[2][WORLD_WIDTH][WORLD_HEIGHT];
+        
+        for(int x = 0; x < WORLD_WIDTH; x++){
+            for(int y = 0; y < WORLD_HEIGHT; y++){
+                float[] nlp = {0,0};
+                nlp = add_phermones_at(x-1, y+1, nlp);
+                nlp = add_phermones_at(x, y+1, nlp);
+                nlp = add_phermones_at(x+1, y+1, nlp);
+
+                nlp = add_phermones_at(x+1, y, nlp);
+                nlp = add_phermones_at(x-1, y, nlp);
+
+                nlp = add_phermones_at(x-1, y-1, nlp);
+                nlp = add_phermones_at(x, y-1, nlp);
+                nlp = add_phermones_at(x+1, y-1, nlp);
+
+                
+                nlp[0] = (1-k)*nlp[0]/8 + (k*food_pheromone[x][y]);
+                nlp[1] = (1-k)*nlp[1]/8 + (k*foraging_pheromone[x][y]);
+
+                phermone_map[0][x][y] = nlp[0] * f;
+                phermone_map[1][x][y] = nlp[1] * f;
+            }
+        }
+
+        return phermone_map;
+    }
+
+    float[] add_phermones_at(int x, int y, float[] nlp){
+        int x_idx = Math.max(Math.min(x, WORLD_WIDTH-1), 0);
+        int y_idx = Math.max(Math.min(y, WORLD_HEIGHT-1), 0);
+
+        Position pos = new Position(x_idx, y_idx);
+
+        float[] answer = {nlp[0] + getFoodStrength(pos), nlp[1] + getForagingStrength(pos)};
+        return answer;
     }
     
     @Override

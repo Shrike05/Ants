@@ -112,7 +112,7 @@ public class Main extends Application {
                             Main.this.colony.updateAnts(Main.this.world);
                         }
                         if (0 == Main.this.epochCounter % 5) {
-                            Main.this.world.dispersePheromones();
+                            Main.this.world.dispersePheromones(new UniformDispersal());
 //                            Main.this.obstacleRenderer.dirty();
                         }
                         //   updateHazards();
@@ -273,5 +273,52 @@ public class Main extends Application {
                 }
             }
         }
+    }
+
+    class UniformDispersal implements DispersalPolicy{
+        float f = 0.95f;
+        float k = 0.5f;
+
+        @Override
+        public float[] getDispersedValue(AntWorld w, Position p) {
+            return dispersePheromone(w, p);
+        }
+
+        float[] dispersePheromone(AntWorld w, Position p){
+            int x = (int)p.getX();
+            int y = (int)p.getY();
+
+            float[] nlp = {0,0};
+            nlp = add_phermones_at(x-1, y+1, nlp, w);
+            nlp = add_phermones_at(x, y+1, nlp, w);
+            nlp = add_phermones_at(x+1, y+1, nlp, w);
+
+            nlp = add_phermones_at(x+1, y, nlp, w);
+            nlp = add_phermones_at(x-1, y, nlp, w);
+
+            nlp = add_phermones_at(x-1, y-1, nlp, w);
+            nlp = add_phermones_at(x, y-1, nlp, w);
+            nlp = add_phermones_at(x+1, y-1, nlp, w);
+
+            
+            nlp[0] = (1-k)*nlp[0]/8 + (k*w.getFoodStrength(p));
+            nlp[1] = (1-k)*nlp[1]/8 + (k*w.getForagingStrength(p));
+
+            nlp[0] *= f;
+            nlp[1] *= f;
+
+            return nlp;
+        }
+
+        float[] add_phermones_at(int x, int y, float[] nlp, AntWorld w){
+            int x_idx = Math.max(Math.min(x, WORLD_WIDTH-1), 0);
+            int y_idx = Math.max(Math.min(y, WORLD_HEIGHT-1), 0);
+    
+            Position pos = new Position(x_idx, y_idx);
+    
+            float[] answer = {nlp[0] + w.getFoodStrength(pos), nlp[1] + w.getForagingStrength(pos)};
+            return answer;
+        }
+        
     }
 }

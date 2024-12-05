@@ -105,7 +105,10 @@ public interface AntWorld {
     /**
      * Should let pheromones evaporate as well as spread over the world.
      */
-    void dispersePheromones();
+    void dispersePheromones(DispersalPolicy policy);
+
+
+    void selfContainedDisperse();
 
     /**
      * Adds/removes an obstacle closest to {@code p}, depending on the parameter {@code add}.
